@@ -1,29 +1,34 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode'
+import * as vscode from '@vscode/test-electron'
+import * as gcode from 'gcode-parser'
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log(
-		'Congratulations, your extension "gcode-dictionary" is now active!'
-	)
+export default class Extension {
+	constructor(private readonly vscode: vscode.ExtensionContext) {}
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand(
-		'gcode-dictionary.GCode',
-		() => {
-			// The code you place here will be executed every time your command is executed
-			// Display a message box to the user
-			vscode.window.showInformationMessage('Hello from GCode Dictionary!')
+	public activate() {
+		this.vscode.window.registerTextDocumentHighlightProvider(
+			new TextDocumentHighlightProvider(this.vscode, this.highlightGCodeLine)
+		)
+	}
+
+	private highlightGCodeLine(document: vscode.TextDocument, line: number) {
+		const lineText = document.lineAt(line).text
+		const gcodeLine = gcode.parseLine(lineText)
+		const highlights = []
+		for (const token of gcodeLine.tokens) {
+			if (token.type === 'comment') {
+				highlights.push({
+					range: new vscode.Range(line, token.start, line, token.end),
+					kind: vscode.TextHighlightKind.Comment
+				})
+			} else if (token.type === 'command') {
+				highlights.push({
+					range: new vscode.Range(line, token.start, line, token.end),
+					kind: vscode.TextHighlightKind.Keyword
+				})
+			}
 		}
-	)
-
-	context.subscriptions.push(disposable)
+		return highlights
+	}
 }
 
 // This method is called when your extension is deactivated
